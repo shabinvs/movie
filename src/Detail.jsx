@@ -27,7 +27,7 @@ const Detail = () => {
 
   return (
     <div
-      className="min-h-screen select-none p-6 flex flex-col justify-center items-center md:flex-row relative overflow-hidden"
+      className="min-h-screen select-none p-6 flex flex-col  justify-center items-center md:flex-row relative overflow-hidden"
       style={{
         background:
           "linear-gradient(270deg, #1e3c72, #2a5298, #1e3c72, #2a5298)",

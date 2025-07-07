@@ -23,11 +23,13 @@ const App = () => {
   const [data, setData] = useState(null);
   const [name, setName] = useState("");
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [topMovies, setTopMovies] = useState([]);
   const navigate = useNavigate();
 
   const resultRef = useRef(null);
 
+  // Fetch random top movies on mount
   const fetchTopMovies = async () => {
     const randomName = randomMovieList[Math.floor(Math.random() * randomMovieList.length)];
     try {
@@ -54,23 +56,33 @@ const App = () => {
 
   const movieSearch = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return alert("Please enter a movie name");
+
+    if (!name.trim()) {
+      alert("Please enter a movie name");
+      return;
+    }
 
     try {
       setError(null);
+      setLoading(true);
+      setData(null);
+
       const response = await axios.get(
         `https://www.omdbapi.com/?s=${name}&apikey=a5ef1268`
       );
 
       if (response.data.Response === "False") {
-        setData(null);
         setError("🎬 Movie not found! Try another title.");
-        return;
+        setData(null);
+      } else {
+        setData(response.data.Search);
       }
-
-      setData(response.data.Search);
     } catch (error) {
+      console.error("Search failed:", error);
       setError("⚠️ Something went wrong. Please try again.");
+      setData(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,8 +100,8 @@ const App = () => {
   }, [data]);
 
   return (
-    <div className="text-white font-sans bg-gradient-to-tr from-[#041C32] via-[#04293A] to-[#064663]">
-      
+    <div className="text-white font-sans bg-gradient-to-tr from-[#041C32] via-[#04293A] to-[#064663] min-h-screen">
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col justify-center items-center text-center px-4 overflow-hidden">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,_#ffffff10,_#00000000)]" />
@@ -114,18 +126,21 @@ const App = () => {
               onChange={handleChange}
               placeholder="Search for a movie title..."
               className="w-full p-4 rounded-full bg-black/70 text-white border border-cyan-400 placeholder-cyan-300 text-center text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              aria-label="Search for a movie title"
             />
             <div className="flex justify-center mt-4 gap-4 flex-wrap">
               <button
                 type="submit"
                 className="bg-cyan-500 text-black font-semibold px-6 py-2 rounded-full shadow-md hover:bg-cyan-400 hover:scale-105 transition"
+                disabled={loading}
               >
-                🔍 Search
+                {loading ? "Searching..." : "🔍 Search"}
               </button>
               <button
                 type="button"
                 onClick={resetSearch}
                 className="bg-red-500 text-white font-semibold px-6 py-2 rounded-full shadow-md hover:bg-red-400 hover:scale-105 transition"
+                disabled={loading}
               >
                 ⏪ Reset
               </button>
@@ -133,9 +148,14 @@ const App = () => {
           </form>
 
           {error && (
-            <p className="text-red-400 mt-6 text-lg font-semibold bg-red-900/70 p-4 rounded-xl shadow-md">
-              {error}
-            </p>
+            <div className="flex items-center gap-3 mt-6 bg-red-900/80 p-4 rounded-xl shadow-md border border-red-600 max-w-md mx-auto">
+              <span className="text-red-400 text-2xl" role="img" aria-label="Error">
+                ⚠️
+              </span>
+              <p className="text-red-400 text-lg font-semibold">
+                {error}
+              </p>
+            </div>
           )}
         </div>
       </section>
@@ -150,23 +170,28 @@ const App = () => {
             {data.map((movie) => (
               <li
                 key={movie.imdbID}
-                className="bg-black/60 p-4 rounded-2xl shadow-lg hover:shadow-cyan-400/30 transition hover:scale-105"
+                className="bg-black/60 p-4 rounded-2xl shadow-lg hover:shadow-cyan-400/30 transition hover:scale-105 cursor-pointer"
+                onClick={() => navigate(`/movies/${movie.imdbID}`)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") navigate(`/movies/${movie.imdbID}`);
+                }}
+                aria-label={`View details for ${movie.Title}`}
               >
-                <Link to={`/movies/${movie.imdbID}`}>
-                  <img
-                    src={
-                      movie.Poster !== "N/A"
-                        ? movie.Poster
-                        : "https://via.placeholder.com/300x450?text=No+Image"
-                    }
-                    alt={movie.Title}
-                    className="rounded-xl w-full h-72 object-cover"
-                  />
-                  <h5 className="mt-4 text-lg font-semibold text-cyan-300 text-center">
-                    {movie.Title}
-                  </h5>
-                  <p className="text-sm text-cyan-100 text-center">Year: {movie.Year}</p>
-                </Link>
+                <img
+                  src={
+                    movie.Poster !== "N/A"
+                      ? movie.Poster
+                      : "https://via.placeholder.com/300x450?text=No+Image"
+                  }
+                  alt={movie.Title}
+                  className="rounded-xl w-full h-72 object-cover"
+                  loading="lazy"
+                />
+                <h5 className="mt-4 text-lg font-semibold text-cyan-300 text-center">
+                  {movie.Title}
+                </h5>
+                <p className="text-sm text-cyan-100 text-center">Year: {movie.Year}</p>
               </li>
             ))}
           </ul>
@@ -185,17 +210,22 @@ const App = () => {
               .map((movie) => (
                 <div
                   key={movie.imdbID}
-                  className="bg-black/60 p-4 rounded-xl shadow-md hover:shadow-cyan-500/30 transition hover:scale-105 text-center"
+                  className="bg-black/60 p-4 rounded-xl shadow-md hover:shadow-cyan-500/30 transition hover:scale-105 text-center cursor-pointer"
+                  onClick={() => navigate(`/movies/${movie.imdbID}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") navigate(`/movies/${movie.imdbID}`);
+                  }}
+                  aria-label={`View details for ${movie.Title}`}
                 >
-                  <Link to={`/movies/${movie.imdbID}`}>
-                    <img
-                      src={movie.Poster}
-                      alt={movie.Title}
-                      className="rounded-xl h-72 w-full object-cover"
-                    />
-                    <h5 className="mt-3 text-cyan-200 font-medium">{movie.Title}</h5>
-                    <p className="text-sm text-cyan-100">Year: {movie.Year}</p>
-                  </Link>
+                  <img
+                    src={movie.Poster}
+                    alt={movie.Title}
+                    className="rounded-xl h-72 w-full object-cover"
+                    loading="lazy"
+                  />
+                  <h5 className="mt-3 text-cyan-200 font-medium">{movie.Title}</h5>
+                  <p className="text-sm text-cyan-100">Year: {movie.Year}</p>
                 </div>
               ))}
           </div>
